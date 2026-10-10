@@ -1,5 +1,5 @@
 """Regression tests for the self-contained educational Transformer notebook."""
-import json
+import runpy
 from pathlib import Path
 
 import pytest
@@ -8,13 +8,8 @@ import torch
 
 @pytest.fixture(scope="module")
 def ns():
-    path = Path(__file__).resolve().parents[1] / "Simple Transformer Model" / "Transformer_model.ipynb"
-    notebook = json.loads(path.read_text(encoding="utf-8"))
-    namespace = {}
-    for cell in notebook["cells"][:-1]:  # Exclude the demonstration.
-        if cell["cell_type"] == "code":
-            exec(compile("".join(cell["source"]), str(path), "exec"), namespace)
-    return namespace
+    path = Path(__file__).resolve().parents[1] / "Simple Transformer Model" / "transformer.py"
+    return runpy.run_path(str(path))
 
 
 def test_forward_and_backward(ns):
@@ -62,7 +57,7 @@ def test_reject_invalid_heads_and_mask(ns):
         ns["scaled_dot_product_attention"](q, q, q, torch.ones(2, 7, 7))
 
 
-def test_notebook_demo_executes(ns):
-    path = Path(__file__).resolve().parents[1] / "Simple Transformer Model" / "Transformer_model.ipynb"
-    cell = json.loads(path.read_text(encoding="utf-8"))["cells"][-1]
-    exec(compile("".join(cell["source"]), str(path), "exec"), dict(ns))
+def test_small_model_inference(ns):
+    model = ns["Transformer"](d_model=16, num_heads=4, num_encoder_layers=2,
+                              d_ff=32, input_dim=25, max_len=6, dropout=0.0)
+    assert model(torch.randint(0, 25, (2, 6))).shape == (2, 6, 25)
